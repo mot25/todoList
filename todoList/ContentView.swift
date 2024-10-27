@@ -1,21 +1,37 @@
-//
-//  ContentView.swift
-//  todoList
-//
-//  Created by Матвей Погодаев on 27.10.2024.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    let todos = Todo.getTodos()
+    @State private var vibrateOnRing = false
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            List {
+                Section("UnChecked") {
+                    ForEach(todos) { todo in
+                        HStack {
+                            Text(todo.name)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            // Используем NavigationLink для перехода на экран деталей
+                            NavigationLink(destination: TodoDetails(todo: todo)) {
+                         EmptyView()
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .opacity(0)
+                            
+                            // Кнопка для изменения состояния
+                            Button(action: {
+                                vibrateOnRing.toggle()
+                            }) {
+                                Image(systemName: vibrateOnRing ? "checkmark.square" : "square")
+                            }
+                            .buttonStyle(PlainButtonStyle()) // Убираем стиль кнопки
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Todo List")
         }
-        .padding()
     }
 }
 
