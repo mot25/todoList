@@ -6,6 +6,19 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
+            HStack {
+                Button(action: {
+                    addTodo(name: "Check")
+                }, label: {
+                    Text("+")
+                })
+                .padding(20)
+                Button(action: {
+                    readDb()
+                }, label: {
+                    Text("Read DB")
+                })
+            }
             List {
                 Section("UnChecked") {
                     ForEach(todos) { todo in
