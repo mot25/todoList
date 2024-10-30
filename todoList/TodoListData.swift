@@ -1,63 +1,62 @@
 import Foundation
 import SQLite
+import Combine
 
-func addTodo(name: String) {
-    do {
-        let path = NSSearchPathForDirectoriesInDomains(
-            .documentDirectory, .userDomainMask, true
-        ).first!
+class TodoModel: ObservableObject {
+	@Published var todos: [String] = []  // Массив, который будет содержать названия всех дел
 
-        // Подключение к базе данных
-        let db = try Connection("\(path)/Todo.db")
-        print(db)
-        // Определение таблицы и столбцов
-        let todos = Table("todos")
-        let id = Expression<Int64>("id")
-        let todoName = Expression<String>("name")
+	private var db: Connection?
 
-        // Создание таблицы, если она не существует
-        try db.run(todos.create(ifNotExists: true) { t in
-            t.column(id, primaryKey: .autoincrement)
-            t.column(todoName)
-        })
-        
-        // Вставка нового Todo, если имя не пустое
-        if !name.isEmpty {
-            let insert = todos.insert(todoName <- name)
-            try db.run(insert)
-            print("Todo добавлен: \(name)")
-        }
-    } catch {
-        print("Ошибка при добавлении Todo:", error)
-    }
-}
+	init() {
+		do {
+			// Установка пути к базе данных
+			let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
+			_ = copyDatabaseIfNeeded(sourcePath: Bundle.main.path(forResource: "todo", ofType: "db")!)
+			db = try Connection("\(path)/todo.db")
+			fetchTodos()  // Загрузка начальных данных
+		} catch {
+			print("Ошибка подключения к базе данных:", error)
+		}
+	}
 
-func readDb () {
-    do {
-        let path = NSSearchPathForDirectoriesInDomains(
-            .documentDirectory, .userDomainMask, true
-        ).first!
-        let db = try Connection("\(path)/Todo.db")
-        let todos = Table("todos")
-        for todo in try db.prepare(todos) {
-            print(todo)
-        }
-    } catch {
-        print(error)
-    }
-}
+	func fetchTodos() {
+		do {
+			guard let db = db else { return }
+			let tableTodos = Table("todos")
+			let name = Expression<String>("name")
+			var todosList = [String]()
+			for todo in try db.prepare(tableTodos) {
+				todosList.append(try todo.get(name))
+			}
+			todos = todosList  // Обновление @Published свойства, чтобы ContentView получил обновления
+		} catch {
+			print("Ошибка при чтении базы данных:", error)
+		}
+	}
 
+	func addTodo(name1: String) {
+		do {
+			guard let db = db else { return }
+			let todosTable = Table("todos")
+			let todoName = Expression<String>("name")
+			try db.run(todosTable.insert(todoName <- name1))
+			fetchTodos()  
+		} catch {
+			print("Ошибка при добавлении Todo:", error)
+		}
+	}
 
-func copyDatabaseIfNeeded(sourcePath: String) -> Bool {
-    let documents = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
-    let destinationPath = documents + "/Todo.db"
-    let exists = FileManager.default.fileExists(atPath: destinationPath)
-    guard !exists else { return false }
-    do {
-        try FileManager.default.copyItem(atPath: sourcePath, toPath: destinationPath)
-        return true
-    } catch {
-        print("Ошибка при копировании файла: \(error)")
-        return false
-    }
+	private func copyDatabaseIfNeeded(sourcePath: String) -> Bool {
+		let documents = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
+		let destinationPath = documents + "/todo.db"
+		let exists = FileManager.default.fileExists(atPath: destinationPath)
+		guard !exists else { return false }
+		do {
+			try FileManager.default.copyItem(atPath: sourcePath, toPath: destinationPath)
+			return true
+		} catch {
+			print("Ошибка при копировании файла базы данных:", error)
+			return false
+		}
+	}
 }

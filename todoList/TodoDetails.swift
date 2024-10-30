@@ -8,15 +8,16 @@
 import SwiftUI
 
 struct TodoDetails: View {
-    let todo: Todo
+//    let todo: Todo
     
     var body: some View {
-        Text(todo.name)
-            .font(/*@START_MENU_TOKEN@*/.title/*@END_MENU_TOKEN@*/)
-            .navigationTitle(todo.name)
+		Text("EX")
+//        Text(todo.name)
+//            .font(/*@START_MENU_TOKEN@*/.title/*@END_MENU_TOKEN@*/)
+//            .navigationTitle(todo.name)
     }
 }
 
 #Preview {
-    TodoDetails(todo: Todo.getTodos()[0])
+    TodoDetails()
 }
