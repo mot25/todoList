@@ -2,20 +2,60 @@ import Foundation
 import SQLite
 import Combine
 
+struct TodoModelInterface {
+	var id: Int64
+	var name: String
+	var isCheck: Int64
+}
+
+
 class TodoModel: ObservableObject {
-	@Published var todos: [String] = []  // Массив, который будет содержать названия всех дел
+	@Published var todos: [TodoModelInterface] = []
 
 	private var db: Connection?
 
 	init() {
 		do {
-			// Установка пути к базе данных
 			let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
 			_ = copyDatabaseIfNeeded(sourcePath: Bundle.main.path(forResource: "todo", ofType: "db")!)
 			db = try Connection("\(path)/todo.db")
-			fetchTodos()  // Загрузка начальных данных
+			fetchTodos()
 		} catch {
 			print("Ошибка подключения к базе данных:", error)
+		}
+	}
+
+	func deleteTodo(id1: Int64) {
+		print("delete")
+		do {
+			guard let db = db else { return }
+			let tableTodos = Table("todos")
+			let id = Expression<Int64>("id")
+			let deleteCandidate = tableTodos.filter(id === id1)
+			try db.run(deleteCandidate.delete())
+			fetchTodos()
+		}catch {
+			print("delete todo", error)
+		}
+	}
+
+
+	func toggleIsCheck(id1: Int64){
+		do {
+			guard let db = db else { return }
+			let tableTodos = Table("todos")
+			let id = Expression<Int64>("id")
+			let isCheck = Expression<Int64?>("isCheck")
+			let alice = tableTodos.filter(id == id1)
+			
+			for todo in try db.prepare(alice) {
+				let prevIsCheck = try todo.get(isCheck)
+				let newValue: Int64 = (prevIsCheck == nil || prevIsCheck == 0) ? 1 : 0
+				try db.run(alice.update(isCheck <- newValue))
+			}
+			fetchTodos()
+		} catch {
+			print("edit isCheck", error)
 		}
 	}
 
@@ -23,12 +63,17 @@ class TodoModel: ObservableObject {
 		do {
 			guard let db = db else { return }
 			let tableTodos = Table("todos")
+			var todosList = [TodoModelInterface]()
+			let id = Expression<Int64>("id")
 			let name = Expression<String>("name")
-			var todosList = [String]()
+			let isCheck = Expression<Int64?>("isCheck")
 			for todo in try db.prepare(tableTodos) {
-				todosList.append(try todo.get(name))
+				let candidateTodo = TodoModelInterface(
+					id: try todo.get(id), name: try todo.get(name), isCheck: try todo.get(isCheck) ?? 0
+				)
+				todosList.append(candidateTodo)
 			}
-			todos = todosList  // Обновление @Published свойства, чтобы ContentView получил обновления
+			todos = todosList
 		} catch {
 			print("Ошибка при чтении базы данных:", error)
 		}
@@ -40,7 +85,7 @@ class TodoModel: ObservableObject {
 			let todosTable = Table("todos")
 			let todoName = Expression<String>("name")
 			try db.run(todosTable.insert(todoName <- name1))
-			fetchTodos()  
+			fetchTodos()
 		} catch {
 			print("Ошибка при добавлении Todo:", error)
 		}
